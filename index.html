@@ -5,14 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bubble Pop Frenzy</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #87CEFA; }
-        canvas { display: block; }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #87CEFA; /* Light sky blue */
+            font-family: Arial, sans-serif;
+        }
         #score, #bestScore, #globalBestScore, #time {
             position: absolute;
             top: 10px;
             color: white;
             font-size: 24px;
             z-index: 1000;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
         }
         #score { left: 10px; }
         #bestScore { left: 150px; }
@@ -21,13 +26,63 @@
         .bubble {
             position: absolute;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.7);
+            background: no-repeat center center;
+            background-size: cover;
             border: 2px solid #fff;
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+        }
+        .bubble:hover {
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+        }
+        #startScreen, #settingsScreen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 1000;
+        }
+        #startScreen button, #settingsScreen button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        #settingsScreen {
+            display: none;
+        }
+        .colorInput {
+            margin: 10px;
+            font-size: 18px;
+        }
+        #settingsScreen label {
+            margin-right: 10px;
         }
     </style>
 </head>
 <body>
+    <div id="startScreen">
+        <h1>Bubble Pop Frenzy</h1>
+        <button onclick="startGame()">Start Game</button>
+        <button onclick="showSettings()">Settings</button>
+    </div>
+    <div id="settingsScreen">
+        <h1>Settings</h1>
+        <label for="bubbleCount">Bubble Count:</label>
+        <input type="number" id="bubbleCount" class="colorInput" min="1" max="100" value="5">
+        <br>
+        <label for="bubbleSize">Bubble Size:</label>
+        <input type="number" id="bubbleSize" class="colorInput" min="20" max="100" value="50">
+        <br>
+        <button onclick="applySettings()">Apply</button>
+        <button onclick="hideSettings()">Back</button>
+    </div>
     <div id="score">Score: 0</div>
     <div id="bestScore">Best: 0</div>
     <div id="globalBestScore">Global Best: 0</div>
@@ -39,34 +94,34 @@
         let timeLeft = 60;
         let timerInterval;
         let bubbleInterval;
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // Initialize the game
-            startGame();
-            // Simulate fetching global best score
-            fetchGlobalBestScore();
-        });
+        let bubbleCount = 5;
+        let bubbleSize = 50;
+        let bubbleColors = [
+            'rgba(255, 99, 132, 0.8)', // Red
+            'rgba(54, 162, 235, 0.8)', // Blue
+            'rgba(255, 206, 86, 0.8)', // Yellow
+            'rgba(75, 192, 192, 0.8)', // Teal
+            'rgba(153, 102, 255, 0.8)', // Purple
+            'rgba(255, 159, 64, 0.8)'  // Orange
+        ];
 
         function startGame() {
-            // Reset the score and time
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('settingsScreen').style.display = 'none';
+            document.body.style.overflow = 'hidden';
             score = 0;
             bestScore = parseInt(localStorage.getItem('bestScore')) || 0;
             timeLeft = 60;
             document.getElementById('score').innerText = `Score: ${score}`;
             document.getElementById('bestScore').innerText = `Best: ${bestScore}`;
             document.getElementById('time').innerText = `Time: ${timeLeft}`;
-
-            // Start the timer
             timerInterval = setInterval(updateTimer, 1000);
-
-            // Start spawning bubbles
             bubbleInterval = setInterval(spawnBubble, 1000);
         }
 
         function updateTimer() {
             timeLeft--;
             document.getElementById('time').innerText = `Time: ${timeLeft}`;
-
             if (timeLeft <= 0) {
                 endGame();
             }
@@ -75,11 +130,11 @@
         function spawnBubble() {
             const bubble = document.createElement('div');
             bubble.className = 'bubble';
-            bubble.style.width = `${Math.random() * 50 + 20}px`;
-            bubble.style.height = bubble.style.width;
-            bubble.style.top = `${Math.random() * (window.innerHeight - 100)}px`;
-            bubble.style.left = `${Math.random() * (window.innerWidth - 100)}px`;
-            bubble.style.cursor = 'pointer';
+            bubble.style.width = `${bubbleSize}px`;
+            bubble.style.height = `${bubbleSize}px`;
+            bubble.style.backgroundColor = bubbleColors[Math.floor(Math.random() * bubbleColors.length)];
+            bubble.style.top = `${Math.random() * (window.innerHeight - bubbleSize)}px`;
+            bubble.style.left = `${Math.random() * (window.innerWidth - bubbleSize)}px`;
             bubble.addEventListener('click', () => {
                 score++;
                 document.getElementById('score').innerText = `Score: ${score}`;
@@ -93,25 +148,42 @@
             clearInterval(timerInterval);
             clearInterval(bubbleInterval);
 
-            // Update best score
             if (score > bestScore) {
                 bestScore = score;
                 localStorage.setItem('bestScore', bestScore);
                 document.getElementById('bestScore').innerText = `Best: ${bestScore}`;
             }
 
-            // Simulate checking and updating global best score
             if (score > globalBestScore) {
                 globalBestScore = score;
                 document.getElementById('globalBestScore').innerText = `Global Best: ${globalBestScore}`;
             }
 
             alert(`Game Over! Your final score is ${score}`);
+            // Reset settings to default after game ends
+            bubbleCount = 5;
+            bubbleSize = 50;
+        }
+
+        function showSettings() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('settingsScreen').style.display = 'flex';
+        }
+
+        function hideSettings() {
+            document.getElementById('settingsScreen').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'flex';
+        }
+
+        function applySettings() {
+            bubbleCount = parseInt(document.getElementById('bubbleCount').value);
+            bubbleSize = parseInt(document.getElementById('bubbleSize').value);
+            // Update settings in the game
+            startGame();
         }
 
         function fetchGlobalBestScore() {
-            // Simulate fetching a global best score (fixed value)
-            globalBestScore = 100; // Example value, you can set this as needed
+            globalBestScore = 100; // Simulate a fixed global best score
             document.getElementById('globalBestScore').innerText = `Global Best: ${globalBestScore}`;
         }
     </script>
