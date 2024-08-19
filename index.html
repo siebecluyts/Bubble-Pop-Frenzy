@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bubble Pop Frenzy</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #87CEFA; }
+        canvas { display: block; }
+        #score, #bestScore, #globalBestScore, #time {
+            position: absolute;
+            top: 10px;
+            color: white;
+            font-size: 24px;
+            z-index: 1000;
+        }
+        #score { left: 10px; }
+        #bestScore { left: 150px; }
+        #globalBestScore { left: 300px; }
+        #time { right: 10px; }
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.7);
+            border: 2px solid #fff;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div id="score">Score: 0</div>
+    <div id="bestScore">Best: 0</div>
+    <div id="globalBestScore">Global Best: 0</div>
+    <div id="time">Time: 60</div>
+    <script>
+        let score = 0;
+        let bestScore = 0;
+        let globalBestScore = 0;
+        let timeLeft = 60;
+        let timerInterval;
+        let bubbleInterval;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize the game
+            startGame();
+            // Simulate fetching global best score
+            fetchGlobalBestScore();
+        });
+
+        function startGame() {
+            // Reset the score and time
+            score = 0;
+            bestScore = parseInt(localStorage.getItem('bestScore')) || 0;
+            timeLeft = 60;
+            document.getElementById('score').innerText = `Score: ${score}`;
+            document.getElementById('bestScore').innerText = `Best: ${bestScore}`;
+            document.getElementById('time').innerText = `Time: ${timeLeft}`;
+
+            // Start the timer
+            timerInterval = setInterval(updateTimer, 1000);
+
+            // Start spawning bubbles
+            bubbleInterval = setInterval(spawnBubble, 1000);
+        }
+
+        function updateTimer() {
+            timeLeft--;
+            document.getElementById('time').innerText = `Time: ${timeLeft}`;
+
+            if (timeLeft <= 0) {
+                endGame();
+            }
+        }
+
+        function spawnBubble() {
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.style.width = `${Math.random() * 50 + 20}px`;
+            bubble.style.height = bubble.style.width;
+            bubble.style.top = `${Math.random() * (window.innerHeight - 100)}px`;
+            bubble.style.left = `${Math.random() * (window.innerWidth - 100)}px`;
+            bubble.style.cursor = 'pointer';
+            bubble.addEventListener('click', () => {
+                score++;
+                document.getElementById('score').innerText = `Score: ${score}`;
+                bubble.remove();
+            });
+
+            document.body.appendChild(bubble);
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            clearInterval(bubbleInterval);
+
+            // Update best score
+            if (score > bestScore) {
+                bestScore = score;
+                localStorage.setItem('bestScore', bestScore);
+                document.getElementById('bestScore').innerText = `Best: ${bestScore}`;
+            }
+
+            // Simulate checking and updating global best score
+            if (score > globalBestScore) {
+                globalBestScore = score;
+                document.getElementById('globalBestScore').innerText = `Global Best: ${globalBestScore}`;
+            }
+
+            alert(`Game Over! Your final score is ${score}`);
+        }
+
+        function fetchGlobalBestScore() {
+            // Simulate fetching a global best score (fixed value)
+            globalBestScore = 100; // Example value, you can set this as needed
+            document.getElementById('globalBestScore').innerText = `Global Best: ${globalBestScore}`;
+        }
+    </script>
+</body>
+</html>
