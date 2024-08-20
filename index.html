@@ -3,15 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bubble Pop Frenzy</title>
+    <title>Bubble Pop Frenzy - Multiple Modes</title>
     <style>
         body {
             margin: 0;
             overflow: hidden;
             background-color: #87CEFA; /* Light sky blue */
             font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            touch-action: none;
         }
-        #score, #bestScore, #globalBestScore, #time {
+        #gameContainer {
+            width: 100%;
+            max-width: 100vw;
+            height: 100%;
+            max-height: 100vh;
+            aspect-ratio: 16 / 9;
+            position: relative;
+            background-color: #87CEFA;
+            overflow: hidden;
+        }
+        #score, #bestScore, #time, #lives {
             position: absolute;
             top: 10px;
             color: white;
@@ -21,8 +36,8 @@
         }
         #score { left: 10px; }
         #bestScore { left: 150px; }
-        #globalBestScore { left: 300px; }
         #time { right: 10px; }
+        #lives { right: 150px; }
         .bubble {
             position: absolute;
             border-radius: 50%;
@@ -35,7 +50,7 @@
         .bubble:hover {
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
         }
-        #startScreen, #settingsScreen {
+        #startScreen, #settingsScreen, #modeScreen {
             position: absolute;
             width: 100%;
             height: 100%;
@@ -48,16 +63,16 @@
             text-align: center;
             z-index: 1000;
         }
-        #startScreen button, #settingsScreen button {
+        #startScreen button, #settingsScreen button, #modeScreen button {
             margin: 10px;
             padding: 10px 20px;
             font-size: 18px;
             cursor: pointer;
         }
-        #settingsScreen {
+        #settingsScreen, #modeScreen {
             display: none;
         }
-        .colorInput {
+        .colorInput, .selectInput {
             margin: 10px;
             font-size: 18px;
         }
@@ -67,64 +82,92 @@
     </style>
 </head>
 <body>
-    <div id="startScreen">
-        <h1>Bubble Pop Frenzy</h1>
-        <button onclick="startGame()">Start Game</button>
-        <button onclick="showSettings()">Settings</button>
+    <div id="gameContainer">
+        <div id="startScreen">
+            <h1>Bubble Pop Frenzy</h1>
+            <button onclick="showModeSelection()">Play Game</button>
+            <button onclick="showSettings()">Settings</button>
+        </div>
+        <div id="settingsScreen">
+            <h1>Settings</h1>
+            <label for="bubbleSize">Bubble Size:</label>
+            <input type="number" id="bubbleSize" class="colorInput" min="20" max="100" value="50">
+            <br>
+            <label for="bubbleColor">Bubble Color:</label>
+            <input type="color" id="bubbleColor" class="colorInput" value="#ff6384">
+            <br>
+            <label for="bubbleSpawnRate">Time Between New Bubbles (ms):</label>
+            <input type="number" id="bubbleSpawnRate" class="colorInput" min="100" max="2000" value="1000">
+            <br>
+            <button onclick="applySettings()">Apply</button>
+            <button onclick="hideSettings()">Back</button>
+        </div>
+        <div id="modeScreen">
+            <h1>Select Game Mode</h1>
+            <button onclick="startGame('classic')">Classic</button>
+            <button onclick="startGame('timed')">Timed</button>
+            <button onclick="startGame('endless')">Endless</button>
+            <button onclick="hideModeSelection()">Back</button>
+        </div>
+        <div id="score">Score: 0</div>
+        <div id="bestScore">Best: 0</div>
+        <div id="time">Time: 0s</div>
+        <div id="lives">Lives: 3</div>
     </div>
-    <div id="settingsScreen">
-        <h1>Settings</h1>
-        <label for="bubbleCount">Bubble Count:</label>
-        <input type="number" id="bubbleCount" class="colorInput" min="1" max="100" value="5">
-        <br>
-        <label for="bubbleSize">Bubble Size:</label>
-        <input type="number" id="bubbleSize" class="colorInput" min="20" max="100" value="50">
-        <br>
-        <button onclick="applySettings()">Apply</button>
-        <button onclick="hideSettings()">Back</button>
-    </div>
-    <div id="score">Score: 0</div>
-    <div id="bestScore">Best: 0</div>
-    <div id="globalBestScore">Global Best: 0</div>
-    <div id="time">Time: 60</div>
+    <audio id="popSound" src="https://freesound.org/data/previews/66/66717_931655-lq.mp3" preload="auto"></audio>
+    <audio id="backgroundMusic" src="https://freesound.org/data/previews/350/350862_4486188-lq.mp3" loop preload="auto"></audio>
     <script>
         let score = 0;
         let bestScore = 0;
-        let globalBestScore = 0;
-        let timeLeft = 60;
+        let timeElapsed = 0;
+        let lives = 3;
         let timerInterval;
         let bubbleInterval;
-        let bubbleCount = 5;
         let bubbleSize = 50;
-        let bubbleColors = [
-            'rgba(255, 99, 132, 0.8)', // Red
-            'rgba(54, 162, 235, 0.8)', // Blue
-            'rgba(255, 206, 86, 0.8)', // Yellow
-            'rgba(75, 192, 192, 0.8)', // Teal
-            'rgba(153, 102, 255, 0.8)', // Purple
-            'rgba(255, 159, 64, 0.8)'  // Orange
-        ];
+        let bubbleColor = '#ff6384';
+        let bubbleSpawnRate = 1000;
+        let targetScore = 10;
+        let modeDuration = 60000; // 60 seconds for timed mode
+        let selectedMode = 'classic';
+        const bubbleColors = ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40'];
+        const popSound = document.getElementById('popSound');
+        const backgroundMusic = document.getElementById('backgroundMusic');
 
-        function startGame() {
+        function startGame(mode) {
+            selectedMode = mode;
             document.getElementById('startScreen').style.display = 'none';
             document.getElementById('settingsScreen').style.display = 'none';
-            document.body.style.overflow = 'hidden';
+            document.getElementById('modeScreen').style.display = 'none';
             score = 0;
-            bestScore = parseInt(localStorage.getItem('bestScore')) || 0;
-            timeLeft = 60;
+            timeElapsed = 0;
+            lives = 3;
+            bestScore = parseInt(localStorage.getItem(`bestScore_${mode}`)) || 0;
+            targetScore = 10;
             document.getElementById('score').innerText = `Score: ${score}`;
             document.getElementById('bestScore').innerText = `Best: ${bestScore}`;
-            document.getElementById('time').innerText = `Time: ${timeLeft}`;
+            document.getElementById('time').innerText = `Time: ${timeElapsed}s`;
+            document.getElementById('lives').innerText = `Lives: ${lives}`;
+            backgroundMusic.play();
+            clearInterval(timerInterval); // Clear any previous intervals
             timerInterval = setInterval(updateTimer, 1000);
-            bubbleInterval = setInterval(spawnBubble, 1000);
+
+            switch (mode) {
+                case 'classic':
+                    bubbleInterval = setInterval(spawnBubble, bubbleSpawnRate);
+                    break;
+                case 'timed':
+                    bubbleInterval = setInterval(spawnBubble, bubbleSpawnRate);
+                    setTimeout(endGame, modeDuration); // Time limit for timed mode
+                    break;
+                case 'endless':
+                    bubbleInterval = setInterval(spawnBubble, bubbleSpawnRate);
+                    break;
+            }
         }
 
         function updateTimer() {
-            timeLeft--;
-            document.getElementById('time').innerText = `Time: ${timeLeft}`;
-            if (timeLeft <= 0) {
-                endGame();
-            }
+            timeElapsed++;
+            document.getElementById('time').innerText = `Time: ${timeElapsed}s`;
         }
 
         function spawnBubble() {
@@ -132,37 +175,63 @@
             bubble.className = 'bubble';
             bubble.style.width = `${bubbleSize}px`;
             bubble.style.height = `${bubbleSize}px`;
-            bubble.style.backgroundColor = bubbleColors[Math.floor(Math.random() * bubbleColors.length)];
-            bubble.style.top = `${Math.random() * (window.innerHeight - bubbleSize)}px`;
-            bubble.style.left = `${Math.random() * (window.innerWidth - bubbleSize)}px`;
+            bubble.style.backgroundColor = bubbleColor || bubbleColors[Math.floor(Math.random() * bubbleColors.length)];
+            bubble.style.top = `${Math.random() * (document.getElementById('gameContainer').clientHeight - bubbleSize)}px`;
+            bubble.style.left = `${Math.random() * (document.getElementById('gameContainer').clientWidth - bubbleSize)}px`;
             bubble.addEventListener('click', () => {
                 score++;
                 document.getElementById('score').innerText = `Score: ${score}`;
+                popSound.play();
                 bubble.remove();
+
+                if (selectedMode === 'classic' && score >= targetScore) {
+                    levelUp();
+                }
             });
 
-            document.body.appendChild(bubble);
+            document.getElementById('gameContainer').appendChild(bubble);
+
+            // Remove bubble if not clicked in a certain time
+            setTimeout(() => {
+                if (bubble.parentNode) {
+                    bubble.remove();
+                    if (selectedMode === 'endless') {
+                        lives--;
+                        document.getElementById('lives').innerText = `Lives: ${lives}`;
+                        if (lives === 0) {
+                            endGame();
+                        }
+                    }
+                }
+            }, 3000); // Adjust time before bubble disappears
+        }
+
+        function levelUp() {
+            clearInterval(bubbleInterval);
+            targetScore += 10;
+            bubbleSpawnRate = Math.max(200, bubbleSpawnRate - 100); // Decrease spawn rate
+            bubbleInterval = setInterval(spawnBubble, bubbleSpawnRate);
         }
 
         function endGame() {
             clearInterval(timerInterval);
             clearInterval(bubbleInterval);
-
+            backgroundMusic.pause();
+            backgroundMusic.currentTime = 0;
             if (score > bestScore) {
                 bestScore = score;
-                localStorage.setItem('bestScore', bestScore);
-                document.getElementById('bestScore').innerText = `Best: ${bestScore}`;
+                localStorage.setItem(`bestScore_${selectedMode}`, bestScore);
             }
+            alert(`Game Over! Your score: ${score}. Best score: ${bestScore}`);
+            showModeSelection();
+        }
 
-            if (score > globalBestScore) {
-                globalBestScore = score;
-                document.getElementById('globalBestScore').innerText = `Global Best: ${globalBestScore}`;
-            }
-
-            alert(`Game Over! Your final score is ${score}`);
-            // Reset settings to default after game ends
-            bubbleCount = 5;
-            bubbleSize = 50;
+        function applySettings() {
+            bubbleSize = parseInt(document.getElementById('bubbleSize').value);
+            bubbleColor = document.getElementById('bubbleColor').value;
+            bubbleSpawnRate = parseInt(document.getElementById('bubbleSpawnRate').value);
+            clearInterval(bubbleInterval);
+            bubbleInterval = setInterval(spawnBubble, bubbleSpawnRate);
         }
 
         function showSettings() {
@@ -175,17 +244,29 @@
             document.getElementById('startScreen').style.display = 'flex';
         }
 
-        function applySettings() {
-            bubbleCount = parseInt(document.getElementById('bubbleCount').value);
-            bubbleSize = parseInt(document.getElementById('bubbleSize').value);
-            // Update settings in the game
-            startGame();
+        function showModeSelection() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('modeScreen').style.display = 'flex';
         }
 
-        function fetchGlobalBestScore() {
-            globalBestScore = 100; // Simulate a fixed global best score
-            document.getElementById('globalBestScore').innerText = `Global Best: ${globalBestScore}`;
+        function hideModeSelection() {
+            document.getElementById('modeScreen').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'flex';
         }
+
+        window.addEventListener('resize', () => {
+            const gameContainer = document.getElementById('gameContainer');
+            const aspectRatio = 16 / 9;
+            const windowRatio = window.innerWidth / window.innerHeight;
+            if (windowRatio > aspectRatio) {
+                gameContainer.style.width = `${window.innerHeight * aspectRatio}px`;
+                gameContainer.style.height = `${window.innerHeight}px`;
+            } else {
+                gameContainer.style.width = `${window.innerWidth}px`;
+                gameContainer.style.height = `${window.innerWidth / aspectRatio}px`;
+            }
+        });
+        window.dispatchEvent(new Event('resize'));
     </script>
 </body>
 </html>
